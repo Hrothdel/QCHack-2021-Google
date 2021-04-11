@@ -3,7 +3,6 @@ from typing import List, Tuple
 import numpy as np
 import cirq
 
-
 def matrix_to_sycamore_operations(
     target_qubits: List[cirq.GridQubit], matrix: np.ndarray
 ) -> Tuple[cirq.OP_TREE, List[cirq.GridQubit]]:
@@ -27,4 +26,50 @@ def matrix_to_sycamore_operations(
                 an empty list.
         .
     """
-    return NotImplemented, []
+
+    gate = getGate(matrix)
+    if gate != None:
+        operation = gate.on(*target_qubits)
+
+        converter = cirq.google.ConvertToSycamoreGates()
+        converted = converter.convert(operation)
+        circuit = cirq.Circuit(converted)
+
+        #optimized = cirq.google.optimized_for_sycamore(circuit)
+
+        return circuit, []
+    else:
+        return NotImplemented, []
+
+def getGate(matrix):
+    qubit_number = int(np.log2(len(matrix)))
+    identity = cirq.IdentityGate(qubit_number)
+
+    if np.array_equal(matrix, identity._unitary_()):
+        return identity
+    if qubit_number == 2:
+        gates = [cirq.CNOT,
+                cirq.CX,
+                cirq.CZ,
+                cirq.SWAP,
+                cirq.ISWAP,
+                cirq.google.SYC]
+
+        for gate in gates:
+            if np.array_equal(gate._unitary_(), matrix):
+                return gate
+    if qubit_number == 3:
+        gates = [cirq.CCNOT,
+                cirq.CCX,
+                cirq.CCZ,
+                cirq.CSWAP,
+                cirq.FREDKIN]
+
+        for gate in gates:
+            if np.array_equal(gate._unitary_(), matrix):
+                return gate
+
+    if qubit_number < 3:
+        return cirq.MatrixGate(matrix)
+
+    return None
